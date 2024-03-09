@@ -9,6 +9,7 @@ Robot flow is the following:
 On web UI 2 more buttons were added:
   - PlayGame: In this state the robot connects to the server and utter the hints received from it
   - MyWakeUp: After entering the Sleep state, clicking this button returns to the Active state.
+
 ![furhat](https://github.com/GiovanniFalcone/Concentration_furhat/assets/64232060/0f4784dc-4e3c-4330-acc9-e1ca729d292a)
 
 # Q-learning
