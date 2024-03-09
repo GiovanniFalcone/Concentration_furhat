@@ -9,14 +9,16 @@ class Robot {
             if(suggest != "none") {
                 val row = jsonObject.getJSONObject("action").getJSONArray("position").getInt(0)
                 val column = jsonObject.getJSONObject("action").getJSONArray("position").getInt(1)
-                var card = jsonObject.getJSONObject("action").getString("card")
-                val flagToM = jsonObject.getJSONObject("action").getInt("flagToM")
-                val flagSuggestion = jsonObject.getJSONObject("action").getInt("flagSuggestion")
-                val robotType = jsonObject.getJSONObject("action").getString("robot_type")
+                val card = jsonObject.getJSONObject("action").getString("card")
+                val flagToM = jsonObject.getJSONObject("action").optString("flagToM", "none")
+                val flagSuggestion = jsonObject.getJSONObject("action").optString("flip_type", "none")
+                val robotType = jsonObject.getJSONObject("action").getString("experimental_condition")
+                val sentence = jsonObject.getJSONObject("action").getString("sentence")
 
-                card = getCardinIta(card)
+                // inutile: la carta arriva già con il nome corretto
+                // card = getCardinIta(card)
 
-                return listOf(suggest, card, row, column, flagToM, flagSuggestion, robotType)
+                return listOf(suggest, card, row, column, flagToM, flagSuggestion, robotType, sentence)
             }
             return null
         }

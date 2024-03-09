@@ -5,7 +5,6 @@ import furhatos.app.templateadvancedskill.flow.Parent
 import furhatos.app.templateadvancedskill.flow.interaction.phrasesConversation
 import furhatos.app.templateadvancedskill.flow.log
 import furhatos.app.templateadvancedskill.flow.model.Robot
-import furhatos.app.templateadvancedskill.flow.suggests.phrases
 import furhatos.app.templateadvancedskill.nlu.MyYes
 import furhatos.event.actions.ActionGaze
 import furhatos.flow.kotlin.*
@@ -15,24 +14,24 @@ import furhatos.nlu.common.Yes
 import furhatos.records.Location
 import org.json.JSONObject
 import java.io.IOException
-import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
 import java.net.Socket
+import java.net.URI
 
-var ip = "192.168.137.181"
+var ip = "192.168.1.56"
 var clientPort = 7000
-var serverPort = 5000
 
 var client: Socket? = null
-var server: Socket? = null
 
 /** Json message received from Server */
 var suggest : String = ""
 var row: Int = 0
 var column: Int = 0
 var cardSuggested : String = ""
-var flagToM: Int = -1            // flag for Theory of Mind
-var flagSuggestion: Int = 0      // 1 for suggestion on the first card, 2 otherwise
+var flagToM: String = ""            // flag for Theory of Mind
+var flagSuggestion: String = ""      // 1 for suggestion on the first card, 2 otherwise
 var robotType: String = ""
+var sentence: String = ""
 
 var openCardName : String = ""
 var openCardRow: Int = 0
@@ -51,7 +50,6 @@ val PlayGame: State = state(Parent) {
         while (true) {
             try {
                 client = Socket(ip, clientPort)
-                server = Socket(ip, serverPort)
 
                 log.debug("Connection succeeded.")
 
@@ -88,12 +86,13 @@ fun FlowControlRunner.handleActionData(jsonData: JSONObject) {
     cardSuggested = list[1].toString()
     row = list[2].toString().toInt()
     column = list[3].toString().toInt()
-    flagToM = list[4].toString().toInt()
-    flagSuggestion = list[5].toString().toInt()
+    flagToM = list[4].toString()
+    flagSuggestion = list[5].toString()
     robotType = list[6].toString()
+    sentence = list[7].toString()
 
     furhat.attend(users.current, gazeMode = ActionGaze.Mode.HEADPOSE, speed = ActionGaze.Speed.XFAST, slack = 1)
-    furhat.say(phrases.iSuggestYou(suggest, cardSuggested, row, column, flagToM, flagSuggestion, robotType))
+    furhat.say(sentence)
 
     /** After the robot has provided a hint, send to Flask that spoken sentence is finished
      * Used to remove the pop-up on web page after that sentence is finished*/
@@ -151,27 +150,21 @@ fun FlowControlRunner.handleGameData(jsonData: JSONObject) {
 
 /** Send a message in json format to the server*/
 fun sendToServerFurhatHasFinishedToSpeech() {
+    val jsonObject = """
+        {
+            "Speech": "Finished"
+        }
+    """.trimIndent()
 
-    val jsonObject = JSONObject()
-    jsonObject.put("Speech", "Finished")
+    val url = URI.create("http://$ip:5000/").toURL()
+    with(url.openConnection() as HttpURLConnection) {
+        requestMethod = "POST"
+        setRequestProperty("Content-Type", "application/json")
+        doOutput = true
+        outputStream.bufferedWriter().use { it.write(jsonObject) }
 
-    val jsonString = jsonObject.toString()
-    println(jsonString)
-
-    val postData = """
-            POST / HTTP/1.1
-            Host: $ip
-            Content-Type: application/json
-            Content-Length: ${jsonString.length}
-            
-            $jsonString
-            """.trimIndent()
-
-    val outputStream = server?.getOutputStream()
-
-    val writer = outputStream?.let { OutputStreamWriter(it) }
-    writer?.write(postData)
-    writer?.flush()
+        println("Response code: $responseCode")
+    }
 }
 
 fun FlowControlRunner.handleGameEnd() {
@@ -185,7 +178,6 @@ fun FlowControlRunner.handleGameEnd() {
     furhat.say(message)
 
     client?.close()
-    server?.close()
     log.debug("socket closed")
 
     goto(Goodbye)
@@ -194,7 +186,7 @@ fun FlowControlRunner.handleGameEnd() {
 val Goodbye: State = state(Parent)  {
     onEntry {
         furhat.say(phrasesConversation.endGame) // cambiare in furhat.ask e frasi se si vuole fare la domanda
-        goto(Active)
+        goto(Sleeping)
         //furhat.gesture(Listening)
     }
 
